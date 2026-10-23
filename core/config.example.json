@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "enabled": false,
+  "distance": 360,
+  "dominance": 1.25,
+  "bindings": [
+    {"trigger":"Mouse4","tapPassthrough":true,"clickAction":null,"left":"CMD+[","right":"CMD+]","up":null,"down":null},
+    {"trigger":"Mouse5","tapPassthrough":true,"clickAction":null,"left":"CTRL+LEFT","right":"CTRL+RIGHT","up":"CTRL+UP","down":"CTRL+DOWN"}
+  ]
+}

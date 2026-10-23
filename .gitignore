@@ -1,0 +1,12 @@
+/core/target/
+/build/
+/build-*/
+/dist/
+/verification/
+.DS_Store
+*.cer
+*.p12
+*.pfx
+*.key
+*.log
+
