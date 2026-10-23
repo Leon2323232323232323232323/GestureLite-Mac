@@ -1,8 +1,8 @@
 # GestureLite for Mac — independent 0.1.0 preview project
 
-A native menu-bar gesture utility for macOS 13 or later. This is a **separate implementation**, not a Windows port wired into the existing application. This folder is intended to become the root of a separate GitHub repository.
+A native menu-bar gesture utility for macOS 13 or later. This is a **separate implementation**, independent of the existing Windows application.
 
-**Status:** the Rust engine is tested on Windows. The Swift files have passed syntax parsing only. This project has **not yet been compiled or run on a Mac**, and no downloadable Mac application has been produced or published. Do not present the source archive as an installer. See [VALIDATION.md](VALIDATION.md).
+**Download:** [GestureLite Mac 0.1.0 Preview 2](https://github.com/Leon2323232323232323232323/GestureLite-Mac/releases/tag/v0.1.0-preview.2). Choose `GestureLite-Mac-0.1.0-universal-preview.zip` under Assets. It contains GestureLite.app for Apple Silicon and Intel. Both native Mac CI builds, 15 Rust tests per host, signature checks and native bridge self-tests passed. This remains an early preview: real mouse behavior, UI and first-launch permissions still need physical Mac testing. See [VALIDATION.md](VALIDATION.md).
 
 ## Implemented in source
 
@@ -45,11 +45,13 @@ Use **this folder's contents as the root of a separate repository** (for example
 
 The supplied workflow builds on standard `macos-15` and `macos-15-intel` runners, runs the native bridge self-test and uploads temporary build artifacts. Build jobs have read-only repository permissions; a separate release job has contents-write permission and publishes a clearly labelled GitHub prerelease only after both Mac build jobs pass on main. Pull requests only build/test; they cannot publish. It does not sign with a paid identity or notarize. No Apple secrets are needed. Standard hosted runner execution in public repositories is currently free; private-repository allowances and artifact/storage limits depend on your GitHub plan. [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
 
-Before a public release: obtain successful Mac CI results, complete [MANUAL_TESTS.md](MANUAL_TESTS.md), choose the project's distribution/source license, and review notices for dependencies. No open-source license has been selected for this initial project; free downloads do not automatically make a project open source. Nothing has been uploaded to GitHub from this workspace.
+The separate public repository is [GestureLite-Mac](https://github.com/Leon2323232323232323232323/GestureLite-Mac). The initial source ZIP and checksum were uploaded through the owner's browser; the workflow imported its reviewed files once. Future builds use the browsable source tree directly. The root bootstrap ZIP is an initial snapshot; use the source at the release tag for the exact released version.
+
+Before calling this stable, complete [MANUAL_TESTS.md](MANUAL_TESTS.md). No open-source license has been selected; source visibility and free downloads do not automatically grant an open-source license. Dependency notices are included in the app.
 
 ## First launch without paid Apple signing
 
-Once a real Mac build passes testing:
+To install the preview:
 
 1. Download the preview ZIP from the project's official release and verify its SHA256 against the published checksum.
 2. Extract it and move `GestureLite.app` to Applications before granting permissions. Keep the bundle identifier and installation location stable.
