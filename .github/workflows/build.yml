@@ -1,0 +1,115 @@
+name: Build and release Mac preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'native/**'
+      - 'packaging/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+      - 'THIRD_PARTY_NOTICES.txt'
+      - '*-source.zip*'
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  prepare-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import reviewed source archive once, or use the existing source tree
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f core/Cargo.toml ]]; then
+            sha256sum -c GestureLite-Mac-0.1.0-source.zip.sha256
+            python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          allowed = {'.gitattributes', '.gitignore', 'README.md', 'VALIDATION.md', 'MANUAL_TESTS.md', 'THIRD_PARTY_NOTICES.txt'}
+          with ZipFile('GestureLite-Mac-0.1.0-source.zip') as archive:
+              for item in archive.infolist():
+                  path = PurePosixPath(item.filename)
+                  if path.parts[0] != 'GestureLite-Mac' or '..' in path.parts or path.is_absolute():
+                      raise SystemExit('Unsafe source archive path')
+                  relative = PurePosixPath(*path.parts[1:])
+                  if str(relative) == '.github/workflows/build.yml':
+                      continue  # The authenticated owner already uploaded this workflow.
+                  if str(relative) not in allowed and relative.parts[0] not in ('core', 'native', 'packaging', 'scripts'):
+                      raise SystemExit(f'Unexpected source file: {relative}')
+                  target = Path(str(relative))
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(archive.read(item))
+          PY
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add .gitattributes .gitignore README.md VALIDATION.md MANUAL_TESTS.md THIRD_PARTY_NOTICES.txt core native packaging scripts
+            git commit -m 'Import separate GestureLite Mac source'
+            git push origin HEAD:main
+          fi
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  mac-preview:
+    needs: prepare-source
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ needs.prepare-source.outputs.commit }}
+      - name: Use stable Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy && rustup default stable
+      - name: Test, compile native UI, package and verify both architectures
+        run: bash scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GestureLite-Mac-preview-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+  publish-preview:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [prepare-source, mac-preview]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: GestureLite-Mac-preview-macos-15
+          path: release
+      - name: Publish a clearly labelled prerelease after both Mac builds pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_SHA: ${{ needs.prepare-source.outputs.commit }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          tag="v0.1.0-preview.${RUN_NUMBER}"
+          cat > release-notes.md <<'NOTES'
+          Native GestureLite Mac preview for macOS 13+ (Apple Silicon and Intel).
+
+          Download the universal-preview.zip below, extract GestureLite.app and move it to Applications.
+          This is a free ad-hoc-signed build, not Developer-ID-signed or notarized by Apple. macOS may require an app-specific Open Anyway approval. Do not disable system security protections.
+
+          Grant the requested Accessibility/Input Monitoring permissions, configure shortcuts, Save and Apply, then enable gestures. Gestures start disabled on every launch.
+
+          Both architecture builds, Rust tests, signature checks and the native Swift/C/Rust bridge self-test passed. Real mouse behavior, permissions and Gatekeeper first launch still need physical Mac testing. This is a prerelease, not a stable or certified release.
+          NOTES
+          gh release create "$tag" release/*.zip release/*.sha256 release/*.txt \
+            --repo "$GH_REPO" --target "$BUILD_SHA" --prerelease \
+            --title "GestureLite Mac 0.1.0 Preview ${RUN_NUMBER}" --notes-file release-notes.md
