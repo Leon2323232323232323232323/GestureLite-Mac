@@ -33,7 +33,7 @@ for ARCH in arm64 x86_64; do
 done
 lipo -create "$WORK/GestureLite-arm64" "$WORK/GestureLite-x86_64" -output "$APP/Contents/MacOS/GestureLite"
 chmod 755 "$APP/Contents/MacOS/GestureLite"
-lipo -verify_arch arm64 x86_64 "$APP/Contents/MacOS/GestureLite"
+lipo "$APP/Contents/MacOS/GestureLite" -verify_arch arm64 x86_64
 # An ad-hoc signature is free and supplies code integrity, NOT verified identity.
 # It does not remove Gatekeeper's first-launch warning or provide notarization.
 codesign --force --sign - --timestamp=none --identifier org.gesturelite.mac --options runtime "$APP"
@@ -41,7 +41,7 @@ codesign --verify --strict --verbose=2 "$APP"
 "$APP/Contents/MacOS/GestureLite" --self-test | tee "$WORK/native-self-test.txt"
 codesign --display --verbose=2 "$APP" 2> "$WORK/signature.txt"
 otool -L "$APP/Contents/MacOS/GestureLite" > "$WORK/linked-libraries.txt"
-if grep -E '/(Users|opt|usr/local)/' "$WORK/linked-libraries.txt"; then
+if grep -E '^[[:space:]]+/(Users|opt|usr/local)/' "$WORK/linked-libraries.txt"; then
   echo "Unexpected developer-machine library dependency; refusing to package." >&2; exit 1
 fi
 ZIP="$ROOT/dist/GestureLite-Mac-$VERSION-universal-preview.zip"
